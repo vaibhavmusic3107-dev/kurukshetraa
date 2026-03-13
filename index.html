@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KURUKSHETRA — Epic Chess</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#000;overflow:hidden;font-family:'Cinzel',serif;cursor:none}
+  #canvas{display:block;width:100vw;height:100vh}
+  #cursor{position:fixed;width:22px;height:22px;border:2px solid #d4af37;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);transition:transform .1s;z-index:999;mix-blend-mode:difference}
+  #cursor::after{content:'';position:absolute;width:4px;height:4px;background:#d4af37;border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%)}
+  #ui{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+  #title-screen{position:fixed;inset:0;background:radial-gradient(ellipse at center,#1a0005 0%,#000 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity 1s}
+  #title-screen h1{font-family:'Cinzel Decorative',serif;font-size:clamp(2rem,6vw,5rem);color:#d4af37;text-shadow:0 0 40px #ff6600,0 0 80px #ff3300;letter-spacing:.3em;animation:pulse 2s ease-in-out infinite}
+  #title-screen h2{font-size:clamp(.8rem,2vw,1.2rem);color:#cc8844;letter-spacing:.5em;margin-top:.5rem;opacity:.8}
+  @keyframes pulse{0%,100%{text-shadow:0 0 40px #ff6600,0 0 80px #ff3300}50%{text-shadow:0 0 60px #ffaa00,0 0 120px #ff6600,0 0 200px #ff3300}}
+  .btn{pointer-events:all;font-family:'Cinzel',serif;font-size:1rem;letter-spacing:.2em;border:1px solid #d4af37;background:rgba(212,175,55,.08);color:#d4af37;padding:.7rem 2rem;cursor:pointer;transition:all .3s;margin:.4rem;text-transform:uppercase}
+  .btn:hover{background:rgba(212,175,55,.25);box-shadow:0 0 20px rgba(212,175,55,.4);transform:scale(1.05)}
+  #hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:1rem 1.5rem;pointer-events:none}
+  .side-info{min-width:160px}
+  .side-label{font-size:.65rem;letter-spacing:.3em;opacity:.5;text-transform:uppercase;margin-bottom:.2rem}
+  .side-name{font-size:1.1rem;letter-spacing:.15em;font-weight:600}
+  .side-name.white{color:#f5e6c0}
+  .side-name.black{color:#cc3322}
+  .timer{font-size:1.4rem;letter-spacing:.1em;opacity:.7}
+  #turn-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Cinzel Decorative',serif;font-size:2.5rem;color:#d4af37;text-shadow:0 0 30px #ff6600;opacity:0;pointer-events:none;transition:opacity .5s;letter-spacing:.3em;white-space:nowrap}
+  #status-bar{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);font-size:.85rem;letter-spacing:.2em;color:#d4af37;opacity:.8;text-align:center;text-shadow:0 0 10px rgba(212,175,55,.5)}
+  #captured-white{position:fixed;left:1rem;bottom:1rem;display:flex;flex-wrap:wrap;gap:2px;max-width:200px}
+  #captured-black{position:fixed;right:1rem;bottom:1rem;display:flex;flex-wrap:wrap;gap:2px;max-width:200px;justify-content:flex-end}
+  .cap-piece{font-size:1.1rem;opacity:.6;filter:drop-shadow(0 0 4px rgba(212,175,55,.5))}
+  #promo-panel{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:200;pointer-events:all}
+  #promo-panel h3{font-family:'Cinzel Decorative',serif;color:#d4af37;margin-bottom:1.5rem;letter-spacing:.3em}
+  .promo-opts{display:flex;gap:1rem}
+  .promo-opt{font-size:3rem;cursor:pointer;padding:.5rem;border:1px solid #d4af37;background:rgba(212,175,55,.1);transition:all .3s}
+  .promo-opt:hover{background:rgba(212,175,55,.3);transform:scale(1.2)}
+  #online-panel{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:200;pointer-events:all;gap:.8rem}
+  #online-panel h3{font-family:'Cinzel Decorative',serif;color:#d4af37;letter-spacing:.2em;margin-bottom:.5rem}
+  #online-panel input{font-family:'Cinzel',serif;background:rgba(212,175,55,.08);border:1px solid #d4af37;color:#d4af37;padding:.6rem 1rem;font-size:1rem;letter-spacing:.1em;width:260px;text-align:center}
+  #online-panel input::placeholder{opacity:.4}
+  #msg-box{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Cinzel Decorative',serif;font-size:2.8rem;color:#d4af37;text-shadow:0 0 50px #ff6600,0 0 100px #ff3300;text-align:center;opacity:0;pointer-events:none;transition:opacity .6s;letter-spacing:.2em;line-height:1.4}
+  #volume-btn{position:fixed;top:1rem;right:1rem;font-size:1.2rem;pointer-events:all;cursor:pointer;color:#d4af37;opacity:.5;transition:opacity .3s;z-index:50}
+  #volume-btn:hover{opacity:1}
+  #loading{position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem}
+  #loading h2{font-family:'Cinzel Decorative',serif;color:#d4af37;letter-spacing:.3em;font-size:1.5rem}
+  #progress{width:300px;height:3px;background:#1a1a1a;overflow:hidden}
+  #progress-bar{height:100%;background:linear-gradient(90deg,#d4af37,#ff6600);width:0%;transition:width .3s}
+</style>
+</head>
+<body>
+<div id="loading">
+  <h2>KURUKSHETRA</h2>
+  <div id="progress"><div id="progress-bar"></div></div>
+  <div style="color:#664422;font-size:.75rem;letter-spacing:.3em">SUMMONING THE WARRIORS...</div>
+</div>
+<div id="cursor"></div>
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+  <div id="title-screen">
+    <h1>KURUKSHETRA</h1>
+    <h2>THE ETERNAL BATTLE</h2>
+    <div style="height:2rem"></div>
+    <button class="btn" onclick="Game.startLocal()">⚔ LOCAL DUEL</button>
+    <button class="btn" onclick="showOnlinePanel()">🌐 ONLINE BATTLE</button>
+    <div style="margin-top:1rem;color:#553311;font-size:.7rem;letter-spacing:.2em">WASD / SCROLL TO ORBIT · LEFT CLICK TO SELECT</div>
+  </div>
+
+  <div id="online-panel">
+    <h3>⚔ ONLINE BATTLE ⚔</h3>
+    <div style="color:#886644;font-size:.75rem;letter-spacing:.2em;margin-bottom:.5rem">SERVER: ws://localhost:8765</div>
+    <input id="room-input" placeholder="ROOM CODE (e.g. BATTLE01)" maxlength="20">
+    <input id="ws-host" placeholder="WebSocket Host (default: localhost:8765)">
+    <button class="btn" onclick="Game.connectOnline()">JOIN BATTLE</button>
+    <button class="btn" onclick="hideOnlinePanel()">BACK</button>
+  </div>
+
+  <div id="hud" style="display:none">
+    <div class="side-info">
+      <div class="side-label">PANDAVA ARMY</div>
+      <div class="side-name white" id="white-name">WHITE</div>
+    </div>
+    <div style="text-align:center">
+      <div id="turn-indicator" style="font-size:.7rem;letter-spacing:.3em;color:#d4af37;opacity:.7"></div>
+    </div>
+    <div class="side-info" style="text-align:right">
+      <div class="side-label">KAURAVA ARMY</div>
+      <div class="side-name black" id="black-name">BLACK</div>
+    </div>
+  </div>
+
+  <div id="turn-banner"></div>
+  <div id="msg-box"></div>
+  <div id="status-bar"></div>
+  <div id="captured-white"></div>
+  <div id="captured-black"></div>
+  <button id="volume-btn" onclick="toggleVolume()">🔊</button>
+</div>
+
+<div id="promo-panel">
+  <h3>CHOOSE YOUR CHAMPION</h3>
+  <div class="promo-opts">
+    <div class="promo-opt" onclick="Game.promotePawn('q')">♛</div>
+    <div class="promo-opt" onclick="Game.promotePawn('r')">♜</div>
+    <div class="promo-opt" onclick="Game.promotePawn('b')">♝</div>
+    <div class="promo-opt" onclick="Game.promotePawn('n')">♞</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script>
+// =====================================================================
+// KURUKSHETRA — CINEMATIC 3D CHESS ENGINE
+// Three.js WebGL 3D · Pure Web Audio API · chess.js rule engine
+// Target: 20-25 cinematic movie fans. Mahabharata / Ramayana theme.
+// =====================================================================
+
+// =====================================================================
+// AUDIO ENGINE — Synthesized epic war music, no audio files needed
+// =====================================================================
+class AudioEngine {
+  constructor(){
+    this.ctx = null; this.masterGain = null;
+    this.bgmGain = null; this.sfxGain = null;
+    this.muted = false; this.bgmStarted = false;
+    this.scheduledNodes = [];
+  }
+  init(){
+    try{
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.masterGain = this.ctx.createGain(); this.masterGain.gain.value = 0.8;
+      this.bgmGain = this.ctx.createGain(); this.bgmGain.gain.value = 0.3;
+      this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.9;
+      const comp = this.ctx.createDynamicsCompressor();
+      this.bgmGain.connect(comp); this.sfxGain.connect(comp);
+      comp.connect(this.masterGain); this.masterGain.connect(this.ctx.destination);
+      return true;
+    }catch(e){ return false; }
+  }
+  resume(){ if(this.ctx && this.ctx.state==='suspended') this.ctx.resume(); }
+  
+  // War drum: deep booming war drum
+  drumHit(when, freq=60, decay=0.8, vol=0.8){
+    if(!this.ctx) return;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    const dist = this.ctx.createWaveShaper();
+    dist.curve = this._makeDistCurve(200);
+    o.frequency.setValueAtTime(freq*2, when);
+    o.frequency.exponentialRampToValueAtTime(freq, when+0.05);
+    o.frequency.exponentialRampToValueAtTime(freq*0.3, when+decay);
+    g.gain.setValueAtTime(vol, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when+decay);
+    o.connect(dist); dist.connect(g); g.connect(this.bgmGain);
+    o.start(when); o.stop(when+decay+0.05);
+  }
+  // Noise burst for snare/impact
+  noiseBurst(when, decay=0.15, freq=200, vol=0.5){
+    if(!this.ctx) return;
+    const buf = this.ctx.createBuffer(1, this.ctx.sampleRate*decay, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    const src = this.ctx.createBufferSource();
+    const filt = this.ctx.createBiquadFilter();
+    filt.type = 'bandpass'; filt.frequency.value = freq; filt.Q.value = 0.5;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when+decay);
+    src.buffer = buf;
+    src.connect(filt); filt.connect(g); g.connect(this.sfxGain);
+    src.start(when); src.stop(when+decay+0.01);
+  }
+  // Melodic tone for atmosphere
+  tone(when, freq, dur, vol=0.3, type='sine'){
+    if(!this.ctx) return;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.001, when);
+    g.gain.linearRampToValueAtTime(vol, when+0.05);
+    g.gain.setValueAtTime(vol, when+dur-0.1);
+    g.gain.exponentialRampToValueAtTime(0.001, when+dur);
+    o.connect(g); g.connect(this.bgmGain);
+    o.start(when); o.stop(when+dur+0.05);
+  }
+  // Metal clang for sword/capture
+  metalClang(when, freq=440, decay=1.2, vol=0.7){
+    if(!this.ctx) return;
+    [1,2.756,4.01,5.62,7.2].forEach((ratio,i)=>{
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = 'sine'; o.frequency.value = freq * ratio;
+      g.gain.setValueAtTime(vol/(i+1), when);
+      g.gain.exponentialRampToValueAtTime(0.001, when+decay/(i*0.3+1));
+      o.connect(g); g.connect(this.sfxGain);
+      o.start(when); o.stop(when+decay+0.1);
+    });
+  }
+  // War horn / conch shell
+  horn(when, freq=110, dur=1.5, vol=0.5){
+    if(!this.ctx) return;
+    const o = this.ctx.createOscillator();
+    const o2 = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    const dist = this.ctx.createWaveShaper();
+    dist.curve = this._makeDistCurve(80);
+    o.type = 'sawtooth'; o.frequency.value = freq;
+    o2.type = 'square'; o2.frequency.value = freq * 1.5;
+    const g2 = this.ctx.createGain(); g2.gain.value = 0.3;
+    g.gain.setValueAtTime(0.001, when);
+    g.gain.linearRampToValueAtTime(vol, when+0.15);
+    g.gain.setValueAtTime(vol, when+dur-0.3);
+    g.gain.exponentialRampToValueAtTime(0.001, when+dur);
+    o.connect(dist); o2.connect(g2); dist.connect(g); g2.connect(g); g.connect(this.bgmGain);
+    o.start(when); o.stop(when+dur+0.1);
+    o2.start(when); o2.stop(when+dur+0.1);
+  }
+  // Whoosh for piece movement
+  whoosh(vol=0.4){
+    if(!this.ctx) return;
+    const when = this.ctx.currentTime;
+    this.noiseBurst(when, 0.3, 1200, vol*0.6);
+    this.noiseBurst(when+0.05, 0.3, 800, vol*0.4);
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(800, when);
+    o.frequency.exponentialRampToValueAtTime(200, when+0.3);
+    g.gain.setValueAtTime(vol*0.3, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when+0.3);
+    o.connect(g); g.connect(this.sfxGain);
+    o.start(when); o.stop(when+0.35);
+  }
+  // Piece selection click
+  selectSound(){
+    if(!this.ctx) return;
+    const when = this.ctx.currentTime;
+    this.metalClang(when, 660, 0.4, 0.3);
+  }
+  // Capture impact
+  captureSound(){
+    if(!this.ctx) return;
+    const when = this.ctx.currentTime;
+    this.metalClang(when, 220, 0.8, 0.8);
+    this.noiseBurst(when+0.05, 0.4, 400, 0.6);
+    // War cry
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    const dist = this.ctx.createWaveShaper();
+    dist.curve = this._makeDistCurve(300);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(220, when+0.1);
+    o.frequency.linearRampToValueAtTime(180, when+0.6);
+    g.gain.setValueAtTime(0.001, when+0.1);
+    g.gain.linearRampToValueAtTime(0.4, when+0.15);
+    g.gain.exponentialRampToValueAtTime(0.001, when+0.7);
+    o.connect(dist); dist.connect(g); g.connect(this.sfxGain);
+    o.start(when+0.1); o.stop(when+0.75);
+  }
+  // Check warning
+  checkSound(){
+    if(!this.ctx) return;
+    const when = this.ctx.currentTime;
+    this.horn(when, 110, 1.2, 0.6);
+    this.noiseBurst(when, 0.2, 600, 0.4);
+  }
+  // Victory fanfare
+  victorySound(){
+    if(!this.ctx) return;
+    const when = this.ctx.currentTime;
+    const notes = [261,329,392,523,659,784];
+    notes.forEach((f,i)=>{
+      this.tone(when+i*0.12, f, 0.8, 0.4, 'triangle');
+      this.tone(when+i*0.12, f*2, 0.6, 0.2, 'sine');
+    });
+    this.horn(when+0.8, 130, 2.0, 0.5);
+    [0,0.15,0.3,0.5].forEach(dt=>this.drumHit(when+dt, 70, 0.5, 0.6));
+  }
+  // Death sound (soul leaving)
+  deathSound(){
+    if(!this.ctx) return;
+    const when = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(440, when);
+    o.frequency.exponentialRampToValueAtTime(880, when+0.5);
+    o.frequency.exponentialRampToValueAtTime(110, when+1.5);
+    g.gain.setValueAtTime(0.001, when);
+    g.gain.linearRampToValueAtTime(0.35, when+0.1);
+    g.gain.exponentialRampToValueAtTime(0.001, when+1.8);
+    o.connect(g); g.connect(this.sfxGain);
+    o.start(when); o.stop(when+1.9);
+    this.noiseBurst(when, 0.6, 300, 0.3);
+  }
+  // BGM: Procedural Kurukshetra war music
+  startBGM(){
+    if(!this.ctx || this.bgmStarted) return;
+    this.bgmStarted = true;
+    const bpm = 72; const beat = 60/bpm;
+    const now = this.ctx.currentTime;
+    // Schedule 32 beats of war drums
+    for(let i=0;i<64;i++){
+      const t = now + i*beat;
+      // Bass drum every beat
+      this.drumHit(t, 55, beat*0.9, 0.7);
+      // Snare on 2 and 4
+      if(i%4===2||i%4===0) this.noiseBurst(t+beat*0.5, 0.12, 300, 0.4);
+      // Accent drum
+      if(i%8===0) this.drumHit(t, 40, beat*1.5, 0.9);
+      // High percussion
+      if(i%2===1) this.noiseBurst(t+beat*0.25, 0.08, 2000, 0.2);
+    }
+    // Drone / sitar-like
+    const droneNotes = [55,73.4,82.4,55,73.4,98,73.4,82.4];
+    droneNotes.forEach((f,i)=>{
+      this.tone(now+i*beat*4, f, beat*3.8, 0.15, 'sawtooth');
+      this.tone(now+i*beat*4, f*2, beat*3.8, 0.08, 'triangle');
+    });
+    // Heroic melody (pentatonic)
+    const melody = [261,293,329,392,440,392,329,293,261,220,261,293];
+    melody.forEach((f,i)=>{
+      this.tone(now+8*beat+i*beat*2, f, beat*1.8, 0.12, 'triangle');
+      this.tone(now+8*beat+i*beat*2, f*3, beat*1.4, 0.04, 'sine');
+    });
+    // Horns at key moments
+    this.horn(now+4*beat, 65, beat*3, 0.25);
+    this.horn(now+16*beat, 87, beat*4, 0.3);
+    this.horn(now+32*beat, 73, beat*5, 0.25);
+    // Loop after ~60s
+    setTimeout(()=>{ this.bgmStarted=false; this.startBGM(); }, 56000);
+  }
+  _makeDistCurve(amount){
+    const n=256, curve=new Float32Array(n);
+    for(let i=0;i<n;i++){
+      const x=(i*2)/n-1;
+      curve[i]=(Math.PI+amount)*x/(Math.PI+amount*Math.abs(x));
+    }
+    return curve;
+  }
+  setMuted(m){
+    this.muted=m;
+    if(this.masterGain) this.masterGain.gain.value = m ? 0 : 0.8;
+  }
+}
+
+// =====================================================================
+// PARTICLE SYSTEM
+// =====================================================================
+class Particles {
+  constructor(scene){
+    this.scene = scene;
+    this.systems = [];
+  }
+  dust(pos, color=0xcc8844, count=40){
+    const geo = new THREE.BufferGeometry();
+    const verts = new Float32Array(count*3);
+    const vels = [];
+    for(let i=0;i<count;i++){
+      verts[i*3]=pos.x; verts[i*3+1]=pos.y; verts[i*3+2]=pos.z;
+      vels.push(new THREE.Vector3((Math.random()-.5)*3,(Math.random()*.5+.2),(Math.random()-.5)*3));
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(verts,3));
+    const mat = new THREE.PointsMaterial({color, size:.08, transparent:true, opacity:.9, depthWrite:false});
+    const pts = new THREE.Points(geo,mat);
+    this.scene.add(pts);
+    this.systems.push({pts,vels,life:1,maxLife:1,type:'dust'});
+  }
+  soul(pos, color=0x88aaff, count=80){
+    const geo = new THREE.BufferGeometry();
+    const verts = new Float32Array(count*3);
+    const vels = [];
+    for(let i=0;i<count;i++){
+      verts[i*3]=pos.x+(Math.random()-.5)*.3;
+      verts[i*3+1]=pos.y+(Math.random()-.5)*.3;
+      verts[i*3+2]=pos.z+(Math.random()-.5)*.3;
+      vels.push(new THREE.Vector3((Math.random()-.5)*.5,Math.random()*2+0.5,(Math.random()-.5)*.5));
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(verts,3));
+    const mat = new THREE.PointsMaterial({color, size:.12, transparent:true, opacity:1, depthWrite:false});
+    const pts = new THREE.Points(geo,mat);
+    this.scene.add(pts);
+    this.systems.push({pts,vels,life:2,maxLife:2,type:'soul'});
+  }
+  sparks(pos, count=60){
+    const geo = new THREE.BufferGeometry();
+    const verts = new Float32Array(count*3);
+    const vels = [];
+    for(let i=0;i<count;i++){
+      verts[i*3]=pos.x; verts[i*3+1]=pos.y+.5; verts[i*3+2]=pos.z;
+      const angle=Math.random()*Math.PI*2;
+      const speed=Math.random()*4+1;
+      vels.push(new THREE.Vector3(Math.cos(angle)*speed,Math.random()*3,Math.sin(angle)*speed));
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(verts,3));
+    const mat = new THREE.PointsMaterial({color:0xffaa22, size:.06, transparent:true, opacity:1, depthWrite:false});
+    const pts = new THREE.Points(geo,mat);
+    this.scene.add(pts);
+    this.systems.push({pts,vels,life:.8,maxLife:.8,type:'sparks'});
+  }
+  blood(pos, color=0xaa0000, count=30){
+    const geo = new THREE.BufferGeometry();
+    const verts = new Float32Array(count*3);
+    const vels = [];
+    for(let i=0;i<count;i++){
+      verts[i*3]=pos.x+(Math.random()-.5)*.2;
+      verts[i*3+1]=pos.y+.3;
+      verts[i*3+2]=pos.z+(Math.random()-.5)*.2;
+      vels.push(new THREE.Vector3((Math.random()-.5)*2,Math.random()*2,(Math.random()-.5)*2));
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(verts,3));
+    const mat = new THREE.PointsMaterial({color, size:.07, transparent:true, opacity:.9, depthWrite:false});
+    const pts = new THREE.Points(geo,mat);
+    this.scene.add(pts);
+    this.systems.push({pts,vels,life:1.2,maxLife:1.2,type:'blood'});
+  }
+  fire(pos, count=50){
+    const geo = new THREE.BufferGeometry();
+    const verts = new Float32Array(count*3);
+    const vels=[], colors=new Float32Array(count*3);
+    for(let i=0;i<count;i++){
+      const r=Math.random()*.2; const a=Math.random()*Math.PI*2;
+      verts[i*3]=pos.x+Math.cos(a)*r; verts[i*3+1]=pos.y; verts[i*3+2]=pos.z+Math.sin(a)*r;
+      vels.push(new THREE.Vector3((Math.random()-.5)*.3,Math.random()*2.5+0.5,(Math.random()-.5)*.3));
+      colors[i*3]=1; colors[i*3+1]=Math.random()*.5; colors[i*3+2]=0;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(verts,3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors,3));
+    const mat = new THREE.PointsMaterial({vertexColors:true, size:.1, transparent:true, opacity:.9, depthWrite:false});
+    const pts = new THREE.Points(geo,mat);
+    this.scene.add(pts);
+    this.systems.push({pts,vels,life:1,maxLife:1,type:'fire'});
+  }
+  update(dt){
+    for(let i=this.systems.length-1;i>=0;i--){
+      const s=this.systems[i];
+      s.life -= dt;
+      if(s.life<=0){ this.scene.remove(s.pts); this.systems.splice(i,1); continue; }
+      const t=1-s.life/s.maxLife;
+      const pos=s.pts.geometry.attributes.position;
+      for(let j=0;j<s.vels.length;j++){
+        const v=s.vels[j];
+        pos.array[j*3] += v.x*dt;
+        pos.array[j*3+1] += v.y*dt;
+        pos.array[j*3+2] += v.z*dt;
+        if(s.type==='dust'||s.type==='blood') v.y-=4*dt; // gravity
+        if(s.type==='soul') v.y+=.5*dt; // float upward
+        if(s.type==='sparks'){ v.y-=8*dt; }
+        if(s.type==='fire') v.y+=.3*dt;
+      }
+      pos.needsUpdate = true;
+      s.pts.material.opacity = Math.max(0, s.life/s.maxLife * (s.type==='soul'?1:0.9));
+    }
+  }
+}
+
+// =====================================================================
+// PIECE FACTORY — Warrior-themed 3D pieces
+// =====================================================================
+class PieceFactory {
+  constructor(){
+    this.mats = {};
+    this._initMats();
+  }
+  _initMats(){
+    const M=THREE.MeshStandardMaterial;
+    this.mats={
+      wBody: new M({color:0xe8d5a3, metalness:.3, roughness:.6}),
+      bBody: new M({color:0x1a0a0a, metalness:.4, roughness:.5}),
+      wMetal: new M({color:0xd4af37, metalness:.95, roughness:.1, emissive:0x443300, emissiveIntensity:.3}),
+      bMetal: new M({color:0xaa2211, metalness:.9, roughness:.15, emissive:0x330000, emissiveIntensity:.5}),
+      blade: new M({color:0xdde8ff, metalness:1, roughness:.05, emissive:0x112255, emissiveIntensity:.4}),
+      eyeW: new M({color:0xff6600, emissive:0xff3300, emissiveIntensity:3, metalness:0}),
+      eyeB: new M({color:0xff0000, emissive:0xff0000, emissiveIntensity:4, metalness:0}),
+      dark: new M({color:0x111111, metalness:.8, roughness:.2}),
+      ivory: new M({color:0xfff5d0, metalness:.1, roughness:.8}),
+      skin: new M({color:0xc8a882, metalness:0, roughness:.9}),
+      bSkin: new M({color:0x5c2a1a, metalness:0, roughness:.9}),
+      stone: new M({color:0x444433, metalness:.2, roughness:.9}),
+      elephant: new M({color:0x6b6b5a, metalness:.2, roughness:.8}),
+      cloth: new M({color:0x7a5c2a, metalness:0, roughness:.95}),
+      bCloth: new M({color:0x5a1010, metalness:0, roughness:.95}),
+    };
+  }
+  getMat(color, key){ return this.mats[color+key] || this.mats[key]; }
+  
+  create(type, color){
+    const g = new THREE.Group();
+    g.userData = {type, color};
+    const f = {p:'Pawn',n:'Knight',b:'Bishop',r:'Rook',q:'Queen',k:'King'}[type];
+    this['make'+f](g, color);
+    // Scale pieces to fit board
+    g.scale.set(.38,.38,.38);
+    g.castShadow = true;
+    return g;
+  }
+
+  // ── PAWN: Foot soldier with spear and shield ──
+  makePawn(g, c){
+    const m=this.mats[c==='w'?'wBody':'bBody'];
+    const mt=this.mats[c==='w'?'wMetal':'bMetal'];
+    // Base
+    this._add(g, new THREE.CylinderGeometry(.55,.65,.12,10), mt, [0,-.44,0]);
+    // Legs
+    [-.15,.15].forEach(x=>{
+      this._add(g, new THREE.CylinderGeometry(.1,.12,.4,7), m, [x,-.25,0]);
+      // Boots
+      this._add(g, new THREE.CylinderGeometry(.13,.13,.1,7), this.mats.dark, [x,-.47,0]);
+    });
+    // Torso
+    this._add(g, new THREE.CylinderGeometry(.18,.22,.55,8), m, [0,.15,0]);
+    // Chest armor
+    this._add(g, new THREE.BoxGeometry(.3,.3,.1), mt, [0,.2,.14], [0,0,0]);
+    // Arms
+    [-.22,.22].forEach((x,i)=>{
+      this._add(g, new THREE.CylinderGeometry(.07,.08,.35,6), m, [x,.12,0], [0,0,i===0?.35:-.35]);
+      this._add(g, new THREE.CylinderGeometry(.07,.07,.3,6), m, [x,-.05,0]);
+    });
+    // Neck
+    this._add(g, new THREE.CylinderGeometry(.09,.12,.15,8), m, [0,.46,0]);
+    // Head
+    this._add(g, new THREE.SphereGeometry(.18,10,10), m, [0,.68,0]);
+    // Helmet
+    this._add(g, new THREE.CylinderGeometry(.19,.2,.12,10), mt, [0,.75,0]);
+    this._add(g, new THREE.ConeGeometry(.1,.22,6), mt, [0,.92,0]);
+    // Eye slit glow
+    this._add(g, new THREE.BoxGeometry(.12,.03,.04), this.mats[c==='w'?'eyeW':'eyeB'], [0,.69,.18]);
+    // Spear shaft
+    this._add(g, new THREE.CylinderGeometry(.025,.025,1.8,6), this.mats.dark, [.3,.5,0]);
+    // Spear tip
+    this._add(g, new THREE.ConeGeometry(.05,.25,5), this.mats.blade, [.3,1.45,0]);
+    // Shield
+    const shg = new THREE.Group();
+    this._add(shg, new THREE.CylinderGeometry(.22,.18,.04,8), mt);
+    this._add(shg, new THREE.ConeGeometry(.08,.06,6), this.mats[c==='w'?'wMetal':'bMetal'], [0,0,.04], [Math.PI/2,0,0]);
+    shg.position.set(-.28,.18,.1); shg.rotation.x=-.3; shg.rotation.z=.2; g.add(shg);
+  }
+
+  // ── KNIGHT: Armored warrior on horseback ──
+  makeKnight(g, c){
+    const m=this.mats[c==='w'?'wBody':'bBody'];
+    const mt=this.mats[c==='w'?'wMetal':'bMetal'];
+    const sk=this.mats[c==='w'?'skin':'bSkin'];
+
+    // === HORSE ===
+    // Body (angled horizontal)
+    const hb = this._add(g, new THREE.CylinderGeometry(.24,.3,.7,10), m);
+    hb.rotation.z=Math.PI/2.1; hb.position.set(.05,.4,0);
+    // Rump
+    const rump=this._add(g, new THREE.SphereGeometry(.28,10,8), m);
+    rump.scale.set(1,.8,.85); rump.position.set(-.22,.4,0);
+    // Chest
+    const chest=this._add(g, new THREE.SphereGeometry(.26,10,8), m);
+    chest.scale.set(1,.8,.85); chest.position.set(.26,.42,0);
+    // Neck
+    const neck=this._add(g, new THREE.CylinderGeometry(.11,.17,.35,8), m);
+    neck.rotation.z=-Math.PI/4.5; neck.position.set(.38,.6,0);
+    // Head
+    const headG = new THREE.Group();
+    this._add(headG, new THREE.BoxGeometry(.32,.22,.17), m);
+    // Snout
+    this._add(headG, new THREE.BoxGeometry(.2,.14,.14), m, [.16,-.04,0]);
+    // Nostril
+    this._add(headG, new THREE.SphereGeometry(.03,5,5), this.mats.dark, [.22,-.06,.05]);
+    this._add(headG, new THREE.SphereGeometry(.03,5,5), this.mats.dark, [.22,-.06,-.05]);
+    // Eye
+    this._add(headG, new THREE.SphereGeometry(.035,6,6), this.mats[c==='w'?'eyeW':'eyeB'], [.04,.06,.1]);
+    // Ear
+    this._add(headG, new THREE.ConeGeometry(.04,.1,5), m, [-.1,.14,.06]);
+    this._add(headG, new THREE.ConeGeometry(.04,.1,5), m, [-.1,.14,-.06]);
+    headG.position.set(.54,.76,0); headG.rotation.z=.18; g.add(headG);
+    // Mane
+    for(let i=0;i<7;i++){
+      const mn=this._add(g, new THREE.SphereGeometry(.05-.005*i,6,5), mt);
+      mn.position.set(.3-i*.06,.72,0); mn.scale.y=1.4;
+    }
+    // Tail
+    const tail=this._add(g, new THREE.CylinderGeometry(.06,.02,.5,6), mt);
+    tail.rotation.z=Math.PI/2.8; tail.position.set(-.38,.28,0);
+    // Horse legs (4)
+    const legCfg=[{x:.18,z:.12,rz:-.12},{x:.18,z:-.12,rz:-.12},{x:-.12,z:.12,rz:.1},{x:-.12,z:-.12,rz:.1}];
+    legCfg.forEach((lc,i)=>{
+      const upper=this._add(g, new THREE.CylinderGeometry(.07,.06,.35,7), m);
+      upper.position.set(lc.x,.2,lc.z); upper.rotation.z=lc.rz;
+      const lower=this._add(g, new THREE.CylinderGeometry(.05,.04,.3,7), m);
+      lower.position.set(lc.x+lc.rz*.05,-.05,lc.z); lower.rotation.z=-lc.rz*.4;
+      const hoof=this._add(g, new THREE.CylinderGeometry(.06,.07,.07,8), this.mats.dark);
+      hoof.position.set(lc.x+lc.rz*.08,-.22,lc.z);
+    });
+    // Armor barding
+    this._add(g, new THREE.BoxGeometry(.35,.08,.45), mt, [.05,.26,0]);
+
+    // === RIDER ===
+    // Torso
+    this._add(g, new THREE.CylinderGeometry(.14,.17,.45,9), m, [0,.92,0]);
+    // Chest plate
+    this._add(g, new THREE.BoxGeometry(.26,.28,.1), mt, [.06,.97,.16]);
+    // Back plate
+    this._add(g, new THREE.BoxGeometry(.26,.28,.1), mt, [.06,.97,-.16]);
+    // Shoulder pads
+    [.15,-.15].forEach(z=>{
+      this._add(g, new THREE.SphereGeometry(.11,8,8,0,Math.PI), mt, [0,1.12,z]);
+    });
+    // Arms
+    this._add(g, new THREE.CylinderGeometry(.06,.07,.3,6), m, [.12,1.0,.2], [0,0,.4]);
+    this._add(g, new THREE.CylinderGeometry(.06,.07,.3,6), m, [.12,1.0,-.2], [0,0,-.4]);
+    // Head / Helmet
+    this._add(g, new THREE.SphereGeometry(.16,10,10), m, [0,1.28,0]);
+    this._add(g, new THREE.CylinderGeometry(.17,.17,.06,10), mt, [0,1.28,0]);
+    this._add(g, new THREE.CylinderGeometry(.03,.15,.18,8), mt, [0,1.32,0]);
+    // Visor
+    this._add(g, new THREE.BoxGeometry(.12,.04,.22), mt, [.1,1.26,0]);
+    // Eye glow through visor
+    this._add(g, new THREE.BoxGeometry(.08,.025,.05), this.mats[c==='w'?'eyeW':'eyeB'], [.12,1.27,.1]);
+    // Helmet plume
+    const plumeColor = c==='w' ? 0xffdd44 : 0xff2200;
+    for(let i=0;i<10;i++){
+      const p=new THREE.Mesh(new THREE.ConeGeometry(.015,.18,4),new THREE.MeshStandardMaterial({color:plumeColor,emissive:plumeColor,emissiveIntensity:.8}));
+      p.position.set(0,1.5+i*.01,-.04+i*.01); p.rotation.x=-.3+i*.02;
+      g.add(p);
+    }
+
+    // === SWORD ===
+    const sword = new THREE.Group(); sword.name='sword';
+    this._add(sword, new THREE.CylinderGeometry(.025,.025,.18,8), this.mats.dark); // handle
+    this._add(sword, new THREE.BoxGeometry(.025,.06,.22), mt, [0,.12,0]); // guard
+    this._add(sword, new THREE.BoxGeometry(.022,.65,.04), this.mats.blade, [0,.48,0]); // blade
+    this._add(sword, new THREE.ConeGeometry(.022,.1,5), this.mats.blade, [0,.85,0]); // tip
+    sword.position.set(.18,1.1,.22); sword.rotation.set(Math.PI/6,0,-Math.PI/3.5); g.add(sword);
+
+    // === SHIELD ===
+    const shield = new THREE.Group(); shield.name='shield';
+    this._add(shield, new THREE.CylinderGeometry(.18,.15,.04,8), mt);
+    this._add(shield, new THREE.ConeGeometry(.07,.07,6), this.mats.blade, [0,0,.04], [Math.PI/2,0,0]);
+    shield.position.set(.1,1.05,-.22); shield.rotation.set(-.3,0,.4); g.add(shield);
+  }
+
+  // ── BISHOP: Sage/Brahmin warrior ──
+  makeBishop(g, c){
+    const m=this.mats[c==='w'?'wBody':'bBody'];
+    const mt=this.mats[c==='w'?'wMetal':'bMetal'];
+    // Base + robe
+    this._add(g, new THREE.CylinderGeometry(.5,.6,.1,10), mt, [0,-.44,0]);
+    this._add(g, new THREE.ConeGeometry(.32,.9,10), c==='w'?this.mats.ivory:this.mats.bCloth, [0,.05,0]);
+    this._add(g, new THREE.CylinderGeometry(.18,.32,.15,10), m, [0,.5,0]);
+    this._add(g, new THREE.CylinderGeometry(.13,.18,.18,9), m, [0,.67,0]);
+    // Head
+    this._add(g, new THREE.SphereGeometry(.17,10,10), this.mats[c==='w'?'skin':'bSkin'], [0,.9,0]);
+    // Beard
+    this._add(g, new THREE.ConeGeometry(.1,.2,6), this.mats[c==='w'?'ivory':'bCloth'], [0,.76,0], [Math.PI,0,0]);
+    // Eyes
+    this._add(g, new THREE.SphereGeometry(.03,5,5), this.mats[c==='w'?'eyeW':'eyeB'], [.07,.93,.14]);
+    this._add(g, new THREE.SphereGeometry(.03,5,5), this.mats[c==='w'?'eyeW':'eyeB'], [-.07,.93,.14]);
+    // Tall bishop hat / crown
+    this._add(g, new THREE.CylinderGeometry(.16,.18,.08,10), mt, [0,1.03,0]);
+    this._add(g, new THREE.CylinderGeometry(.12,.16,.35,10), mt, [0,1.22,0]);
+    this._add(g, new THREE.SphereGeometry(.13,8,8), mt, [0,1.42,0]);
+    // Gem on top
+    this._add(g, new THREE.OctahedronGeometry(.08), new THREE.MeshStandardMaterial({color:c==='w'?0x44ff88:0xff4422,emissive:c==='w'?0x00ff44:0xff0000,emissiveIntensity:2}), [0,1.6,0]);
+    // Staff
+    this._add(g, new THREE.CylinderGeometry(.03,.03,2.2,6), this.mats.dark, [.38,.75,0]);
+    this._add(g, new THREE.TorusGeometry(.12,.025,6,12), mt, [.38,1.9,0], [Math.PI/2,0,0]);
+    this._add(g, new THREE.SphereGeometry(.08,8,8), new THREE.MeshStandardMaterial({color:c==='w'?0x88ffcc:0xff8822,emissive:c==='w'?0x44ffaa:0xff4400,emissiveIntensity:2}), [.38,2.05,0]);
+    // Arm
+    this._add(g, new THREE.CylinderGeometry(.06,.07,.4,6), m, [.22,.82,0], [0,0,-.5]);
+  }
+
+  // ── ROOK: War Elephant ──
+  makeRook(g, c){
+    const m=this.mats.elephant;
+    const mt=this.mats[c==='w'?'wMetal':'bMetal'];
+    // Platform base
+    this._add(g, new THREE.CylinderGeometry(.55,.65,.12,10), mt, [0,-.44,0]);
+    // Elephant body
+    const body=this._add(g, new THREE.SphereGeometry(.42,12,10), m, [0,.12,0]);
+    body.scale.set(1,.8,1);
+    // Head
+    const head=this._add(g, new THREE.SphereGeometry(.32,10,10), m, [0,.58,0]);
+    head.scale.set(.9,.85,1);
+    // Trunk
+    this._add(g, new THREE.CylinderGeometry(.06,.1,.6,8), m, [.42,.45,0], [0,0,Math.PI/2.2]);
+    this._add(g, new THREE.CylinderGeometry(.06,.06,.35,8), m, [.72,.2,0], [0,0,Math.PI/1.7]);
+    // Ears
+    this._add(g, new THREE.SphereGeometry(.22,8,6,0,Math.PI), m, [0,.58,.38], [-Math.PI/2,0,0]);
+    this._add(g, new THREE.SphereGeometry(.22,8,6,0,Math.PI), m, [0,.58,-.38], [Math.PI/2,0,0]);
+    // Tusks
+    this._add(g, new THREE.CylinderGeometry(.04,.02,.5,6), this.mats.ivory, [.36,.4,.18], [0,0,-Math.PI/2.5]);
+    this._add(g, new THREE.CylinderGeometry(.04,.02,.5,6), this.mats.ivory, [.36,.4,-.18], [0,0,-Math.PI/2.5]);
+    // Eyes
+    this._add(g, new THREE.SphereGeometry(.045,6,6), this.mats[c==='w'?'eyeW':'eyeB'], [.22,.64,.26]);
+    this._add(g, new THREE.SphereGeometry(.045,6,6), this.mats[c==='w'?'eyeW':'eyeB'], [.22,.64,-.26]);
+    // Elephant legs
+    [[-0.2,-0.25],[.2,-0.25],[-.2,.25],[.2,.25]].forEach(([x,z])=>{
+      this._add(g, new THREE.CylinderGeometry(.1,.12,.5,8), m, [x,-.2,z]);
+    });
+    // Howdah (tower on back)
+    this._add(g, new THREE.CylinderGeometry(.25,.28,.5,8), mt, [-.15,.62,0]);
+    this._add(g, new THREE.CylinderGeometry(.28,.28,.08,10), mt, [-.15,.88,0]);
+    // Tower battlements
+    for(let i=0;i<6;i++){
+      const a=i/6*Math.PI*2;
+      this._add(g, new THREE.BoxGeometry(.07,.12,.07), mt, [-.15+Math.cos(a)*.22,.98,Math.sin(a)*.22]);
+    }
+    // War banner
+    this._add(g, new THREE.CylinderGeometry(.02,.02,.6,5), this.mats.dark, [-.15,1.15,0]);
+    this._add(g, new THREE.BoxGeometry(.02,.25,.22), new THREE.MeshStandardMaterial({color:c==='w'?0xffcc00:0xcc0000,emissive:c==='w'?0x886600:0x660000,emissiveIntensity:.8,side:THREE.DoubleSide}), [-.15,1.28,.1]);
+  }
+
+  // ── QUEEN: Warrior Queen ──
+  makeQueen(g, c){
+    const m=this.mats[c==='w'?'wBody':'bBody'];
+    const mt=this.mats[c==='w'?'wMetal':'bMetal'];
+    const sk=this.mats[c==='w'?'skin':'bSkin'];
+    // Base
+    this._add(g, new THREE.CylinderGeometry(.5,.62,.12,12), mt, [0,-.44,0]);
+    // Flowing armor skirt
+    this._add(g, new THREE.CylinderGeometry(.25,.4,.6,12), m, [0,-.2,0]);
+    this._add(g, new THREE.CylinderGeometry(.18,.25,.18,10), mt, [0,.12,0]);
+    // Torso
+    this._add(g, new THREE.CylinderGeometry(.16,.18,.4,9), m, [0,.4,0]);
+    // Breastplate
+    this._add(g, new THREE.BoxGeometry(.26,.28,.1), mt, [0,.43,.16]);
+    // Back
+    this._add(g, new THREE.BoxGeometry(.26,.28,.1), mt, [0,.43,-.16]);
+    // Shoulder armor
+    [.22,-.22].forEach(z=>{
+      this._add(g, new THREE.SphereGeometry(.1,8,8,0,Math.PI), mt, [0,.65,z], z>0?[0,0,-Math.PI/2]:[0,0,Math.PI/2]);
+      this._add(g, new THREE.CylinderGeometry(.06,.07,.3,6), m, [0,.5,z*1.4], [0,0,z>0?.5:-.5]);
+    });
+    // Neck
+    this._add(g, new THREE.CylinderGeometry(.1,.14,.16,8), sk, [0,.74,0]);
+    // Head
+    this._add(g, new THREE.SphereGeometry(.18,12,12), sk, [0,.96,0]);
+    // Eyes
+    this._add(g, new THREE.SphereGeometry(.04,6,6), this.mats[c==='w'?'eyeW':'eyeB'], [.09,.99,.16]);
+    this._add(g, new THREE.SphereGeometry(.04,6,6), this.mats[c==='w'?'eyeW':'eyeB'], [-.09,.99,.16]);
+    // Queen crown - ornate
+    this._add(g, new THREE.CylinderGeometry(.2,.18,.1,12), mt, [0,1.1,0]);
+    for(let i=0;i<8;i++){
+      const a=i/8*Math.PI*2;
+      const h=i%2===0?.2:.12;
+      this._add(g, new THREE.ConeGeometry(.04,h,5), mt, [Math.cos(a)*.18,1.18+h/2,Math.sin(a)*.18]);
+    }
+    // Crown gems
+    for(let i=0;i<4;i++){
+      const a=i/4*Math.PI*2;
+      this._add(g, new THREE.OctahedronGeometry(.05), new THREE.MeshStandardMaterial({color:c==='w'?0x44ddff:0xff2244,emissive:c==='w'?0x00aaff:0xff0000,emissiveIntensity:3}), [Math.cos(a)*.18,1.14,Math.sin(a)*.18]);
+    }
+    // Long sword
+    const qSword=new THREE.Group(); qSword.name='sword';
+    this._add(qSword, new THREE.CylinderGeometry(.03,.03,.22,8), this.mats.dark);
+    this._add(qSword, new THREE.BoxGeometry(.03,.05,.26), mt, [0,.14,0]);
+    this._add(qSword, new THREE.BoxGeometry(.025,.85,.04), this.mats.blade, [0,.6,0]);
+    this._add(qSword, new THREE.ConeGeometry(.025,.12,5), this.mats.blade, [0,1.08,0]);
+    qSword.position.set(.22,.58,.25); qSword.rotation.set(0,0,-Math.PI/5); g.add(qSword);
+    // Second blade
+    const qB2=new THREE.Group();
+    this._add(qB2, new THREE.BoxGeometry(.022,.65,.04), this.mats.blade, [0,.35,0]);
+    this._add(qB2, new THREE.ConeGeometry(.022,.1,5), this.mats.blade, [0,.7,0]);
+    qB2.position.set(-.22,.58,-.2); qB2.rotation.set(0,0,Math.PI/6); g.add(qB2);
+  }
+
+  // ── KING: Emperor / Chakravartin ──
+  makeKing(g, c){
+    const m=this.mats[c==='w'?'wBody':'bBody'];
+    const mt=this.mats[c==='w'?'wMetal':'bMetal'];
+    const sk=this.mats[c==='w'?'skin':'bSkin'];
+    // Base
+    this._add(g, new THREE.CylinderGeometry(.55,.68,.12,12), mt, [0,-.44,0]);
+    // Robe
+    this._add(g, new THREE.CylinderGeometry(.28,.46,.7,12), c==='w'?this.mats.ivory:this.mats.bCloth, [0,-.1,0]);
+    // Belt
+    this._add(g, new THREE.CylinderGeometry(.28,.28,.08,12), mt, [0,.24,0]);
+    // Torso
+    this._add(g, new THREE.CylinderGeometry(.22,.28,.5,10), m, [0,.55,0]);
+    // Chest plate (ornate)
+    this._add(g, new THREE.BoxGeometry(.35,.35,.12), mt, [0,.58,.18]);
+    // Cross emblem
+    this._add(g, new THREE.BoxGeometry(.12,.03,.04), new THREE.MeshStandardMaterial({color:c==='w'?0xffcc00:0xff3300,emissive:c==='w'?0xffaa00:0xff1100,emissiveIntensity:2}), [0,.62,.24]);
+    this._add(g, new THREE.BoxGeometry(.03,.12,.04), new THREE.MeshStandardMaterial({color:c==='w'?0xffcc00:0xff3300,emissive:c==='w'?0xffaa00:0xff1100,emissiveIntensity:2}), [0,.68,.24]);
+    // Cape
+    const capeG=new THREE.Group();
+    this._add(capeG, new THREE.CylinderGeometry(.01,.35,.7,8,1,true), new THREE.MeshStandardMaterial({color:c==='w'?0xcc8800:0x880000,emissive:c==='w'?0x442200:0x440000,emissiveIntensity:.3,side:THREE.BackSide}));
+    capeG.position.set(-.1,.4,0); g.add(capeG);
+    // Shoulder guards (larger)
+    [.3,-.3].forEach(z=>{
+      this._add(g, new THREE.SphereGeometry(.14,10,8,0,Math.PI), mt, [0,.78,z], z>0?[0,0,-Math.PI/2]:[0,0,Math.PI/2]);
+      this._add(g, new THREE.CylinderGeometry(.04,.05,.08,6), mt, [0,.7,z*1.3]);
+    });
+    // Neck
+    this._add(g, new THREE.CylinderGeometry(.12,.16,.18,9), sk, [0,.88,0]);
+    // Head
+    this._add(g, new THREE.SphereGeometry(.22,12,12), sk, [0,1.16,0]);
+    // Beard
+    this._add(g, new THREE.ConeGeometry(.14,.3,8), c==='w'?this.mats.ivory:this.mats.bCloth, [0,.95,.06], [Math.PI,0,0]);
+    // Eyes - fierce
+    this._add(g, new THREE.SphereGeometry(.045,7,7), this.mats[c==='w'?'eyeW':'eyeB'], [.1,1.2,.2]);
+    this._add(g, new THREE.SphereGeometry(.045,7,7), this.mats[c==='w'?'eyeW':'eyeB'], [-.1,1.2,.2]);
+    // CROWN - most ornate
+    this._add(g, new THREE.CylinderGeometry(.25,.23,.14,14), mt, [0,1.36,0]);
+    // Large crown spires
+    for(let i=0;i<6;i++){
+      const a=i/6*Math.PI*2;
+      const isMain=i%2===0;
+      this._add(g, new THREE.CylinderGeometry(.03,isMain?.07:.05,isMain?.32:.22,6), mt, [Math.cos(a)*.22,1.47+( isMain?.16:.11),Math.sin(a)*.22]);
+      this._add(g, new THREE.SphereGeometry(.05,6,6), new THREE.MeshStandardMaterial({color:c==='w'?0xffdd00:0xff2200,emissive:c==='w'?0xffaa00:0xff0000,emissiveIntensity:3}), [Math.cos(a)*.22,1.65+(isMain?.2:.14),Math.sin(a)*.22]);
+    }
+    // Central jewel
+    this._add(g, new THREE.OctahedronGeometry(.09), new THREE.MeshStandardMaterial({color:c==='w'?0x00ddff:0xff4400,emissive:c==='w'?0x0088ff:0xff2200,emissiveIntensity:4}), [0,1.82,0]);
+    // Scepter
+    const sep=new THREE.Group();
+    this._add(sep, new THREE.CylinderGeometry(.03,.03,1.6,8), this.mats.dark);
+    this._add(sep, new THREE.SphereGeometry(.09,8,8), mt, [0,.85,0]);
+    this._add(sep, new THREE.OctahedronGeometry(.07), new THREE.MeshStandardMaterial({color:c==='w'?0x00ffaa:0xff4422,emissive:c==='w'?0x00aa66:0xff2200,emissiveIntensity:3}), [0,.98,0]);
+    sep.position.set(-.3,.65,.22); sep.rotation.set(0,0,-.3); g.add(sep);
+  }
+
+  _add(g, geo, mat, pos, rot){
+    const m=new THREE.Mesh(geo,mat);
+    if(pos) m.position.set(...pos);
+    if(rot) m.rotation.set(...rot);
+    m.castShadow=true; m.receiveShadow=true;
+    g.add(m); return m;
+  }
+}
+
+// =====================================================================
+// TWEEN — Lightweight animation utility
+// =====================================================================
+class Tween {
+  constructor(from,to,dur,ease,onUpdate,onDone){
+    this.from={...from}; this.to={...to}; this.dur=dur; this.ease=ease||'out';
+    this.onUpdate=onUpdate; this.onDone=onDone;
+    this.t0=performance.now(); this.done=false;
+  }
+  tick(now){
+    if(this.done) return;
+    const t=Math.min(1,(now-this.t0)/this.dur);
+    const e=this._ease(t);
+    const cur={};
+    for(const k in this.from) cur[k]=this.from[k]+(this.to[k]-this.from[k])*e;
+    this.onUpdate(cur,t);
+    if(t>=1){ this.done=true; if(this.onDone) this.onDone(); }
+  }
+  _ease(t){
+    if(this.ease==='linear') return t;
+    if(this.ease==='in') return t*t*t;
+    if(this.ease==='out') return 1-Math.pow(1-t,3);
+    if(this.ease==='inout') return t<.5?4*t*t*t:(t-1)*(2*t-2)*(2*t-2)+1;
+    if(this.ease==='bounce'){
+      if(t<.6) return Math.sin(t*Math.PI*2.5)*.5;
+      return 1-Math.pow(1-t,2)*2;
+    }
+    return t;
+  }
+}
+
+// =====================================================================
+// MAIN GAME CLASS
+// =====================================================================
+class KurukshetraGame {
+  constructor(){
+    this.chess = new Chess();
+    this.scene = this.camera = this.renderer = this.controls = null;
+    this.pieceObjects = {};   // square -> THREE.Group
+    this.squareMeshes = {};   // square -> THREE.Mesh (board squares)
+    this.highlights = [];
+    this.selectedSq = null;
+    this.legalMoves = [];
+    this.tweens = [];
+    this.animQueue = [];
+    this.animRunning = false;
+    this.playerColor = 'w';
+    this.gameMode = 'local';
+    this.ws = null;
+    this.particles = null;
+    this.audio = new AudioEngine();
+    this.factory = new PieceFactory();
+    this.capturedWhite = []; // pieces captured from white
+    this.capturedBlack = [];
+    this.pendingPromo = null;
+    this.torchLights = [];
+    this.clock = new THREE.Clock();
+    this.fireTime = 0;
+    this.lastFen = '';
+    this.gameOver = false;
+  }
+
+  // ── Initialize scene ──
+  init(){
+    const canvas = document.getElementById('canvas');
+    this.renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.outputEncoding = THREE.sRGBEncoding;
+
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.FogExp2(0x080310, 0.028);
+
+    this.camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 300);
+    this.camera.position.set(0, 14, 11);
+    this.camera.lookAt(0, 0, 0);
+
+    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true; this.controls.dampingFactor = 0.08;
+    this.controls.maxPolarAngle = Math.PI/2.1; this.controls.minDistance = 6; this.controls.maxDistance = 30;
+    this.controls.target.set(0, 0, 0);
+
+    this.particles = new Particles(this.scene);
+    this._setupLights();
+    this._buildBattlefield();
+    this._buildBoard();
+    this._placePieces();
+    this._setupInteraction();
+
+    window.addEventListener('resize', ()=>{
+      this.camera.aspect = window.innerWidth/window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Cursor tracking
+    document.addEventListener('mousemove', e=>{
+      const c=document.getElementById('cursor');
+      c.style.left=e.clientX+'px'; c.style.top=e.clientY+'px';
+    });
+
+    this._loadingDone();
+    this._renderLoop();
+  }
+
+  _loadingDone(){
+    const bar = document.getElementById('progress-bar');
+    let p=0;
+    const iv = setInterval(()=>{
+      p+=Math.random()*15+5;
+      bar.style.width=Math.min(p,98)+'%';
+      if(p>=98){ clearInterval(iv); bar.style.width='100%';
+        setTimeout(()=>{ document.getElementById('loading').style.opacity='0';
+          setTimeout(()=>document.getElementById('loading').style.display='none',600); },400);
+      }
+    },120);
+  }
+
+  // ── Lighting ──
+  _setupLights(){
+    // Deep ambient
+    this.scene.add(new THREE.AmbientLight(0x110008, 0.8));
+    // Moon / directional
+    const moon = new THREE.DirectionalLight(0x3344aa, 0.6);
+    moon.position.set(-10, 20, -10);
+    moon.castShadow = true;
+    moon.shadow.mapSize.set(2048,2048);
+    moon.shadow.camera.near=1; moon.shadow.camera.far=60;
+    moon.shadow.camera.left=moon.shadow.camera.bottom=-12;
+    moon.shadow.camera.right=moon.shadow.camera.top=12;
+    moon.shadow.bias=-0.001;
+    this.scene.add(moon);
+    // Rim light (from behind white side)
+    const rim = new THREE.DirectionalLight(0x8833ff, 0.4);
+    rim.position.set(0, 8, 12); this.scene.add(rim);
+    // Fire torches (4 corners)
+    const torchPos=[[-5.5,1.8,-5.5],[-5.5,1.8,5.5],[5.5,1.8,-5.5],[5.5,1.8,5.5]];
+    torchPos.forEach(pos=>{
+      const pl = new THREE.PointLight(0xff6600, 3, 12);
+      pl.position.set(...pos); pl.castShadow=false;
+      this.scene.add(pl); this.torchLights.push(pl);
+    });
+    // Board glow
+    const boardGlow = new THREE.PointLight(0xdd9933, 1.5, 15);
+    boardGlow.position.set(0, 2, 0); this.scene.add(boardGlow);
+  }
+
+  // ── Battlefield environment ──
+  _buildBattlefield(){
+    // Ground
+    const groundGeo = new THREE.PlaneGeometry(200,200,30,30);
+    const verts = groundGeo.attributes.position;
+    for(let i=0;i<verts.count;i++){
+      const x=verts.getX(i), z=verts.getZ(i);
+      if(Math.abs(x)>6||Math.abs(z)>6) verts.setY(i,(Math.random()-.5)*.4);
+    }
+    groundGeo.computeVertexNormals();
+    const groundMat = new THREE.MeshStandardMaterial({color:0x1a1208, roughness:1, metalness:0});
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x=-Math.PI/2; ground.receiveShadow=true;
+    ground.position.y=-.52; this.scene.add(ground);
+
+    // Background mountains (silhouettes)
+    [0,45,90,135,180,225,270,315].forEach((angle,i)=>{
+      const a=angle*Math.PI/180;
+      const dist=35+Math.random()*15;
+      const h=10+Math.random()*20;
+      const mtn = new THREE.Mesh(
+        new THREE.ConeGeometry(5+Math.random()*8, h, 5+Math.floor(Math.random()*4)),
+        new THREE.MeshStandardMaterial({color:0x080410, roughness:1})
+      );
+      mtn.position.set(Math.cos(a)*dist, h/2-3, Math.sin(a)*dist);
+      this.scene.add(mtn);
+    });
+
+    // Distant fires / burning pyres
+    for(let i=0;i<12;i++){
+      const a=Math.random()*Math.PI*2, d=20+Math.random()*15;
+      const fireLight = new THREE.PointLight(0xff4400, 1.5+Math.random(), 8);
+      fireLight.position.set(Math.cos(a)*d, 1, Math.sin(a)*d);
+      this.scene.add(fireLight); this.torchLights.push(fireLight);
+    }
+
+    // Torch columns (4 corners of board)
+    const torchPos=[[-5.5,-5.5],[-5.5,5.5],[5.5,-5.5],[5.5,5.5]];
+    torchPos.forEach(([x,z])=>{
+      const col = new THREE.Mesh(
+        new THREE.CylinderGeometry(.12,.15,3,8),
+        new THREE.MeshStandardMaterial({color:0x3d2810, roughness:.9})
+      );
+      col.position.set(x,1,z); col.castShadow=true; this.scene.add(col);
+      // Torch bowl
+      const bowl = new THREE.Mesh(
+        new THREE.CylinderGeometry(.18,.12,.2,8),
+        new THREE.MeshStandardMaterial({color:0x5a3a10, metalness:.5})
+      );
+      bowl.position.set(x,2.6,z); this.scene.add(bowl);
+      // Flame glow sphere
+      const flame = new THREE.Mesh(
+        new THREE.SphereGeometry(.1,6,6),
+        new THREE.MeshStandardMaterial({color:0xff6600, emissive:0xff3300, emissiveIntensity:5})
+      );
+      flame.position.set(x,2.85,z); this.scene.add(flame);
+    });
+
+    // Dramatic sky dome
+    const skyGeo = new THREE.SphereGeometry(150, 32, 16);
+    const skyMat = new THREE.ShaderMaterial({
+      uniforms:{ uTime:{value:0} },
+      vertexShader:`varying vec3 vPos; void main(){vPos=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+      fragmentShader:`
+        varying vec3 vPos;
+        uniform float uTime;
+        void main(){
+          vec3 dir=normalize(vPos);
+          float y=dir.y*.5+.5;
+          vec3 night=vec3(0.02,0.01,0.04);
+          vec3 horizon=vec3(0.12,0.04,0.01);
+          vec3 fire=vec3(0.4,0.1,0.0);
+          float h=clamp(y,0.,1.);
+          vec3 col=mix(fire,mix(horizon,night,smoothstep(0.,0.4,h)),smoothstep(0.,0.1,h));
+          // Stars
+          vec3 p=dir*100.;
+          float s=fract(sin(dot(floor(p.xy*30.),vec2(127.1,311.7)))*43758.5);
+          if(s>.98&&y>.3) col+=vec3(s*.8)*(y-.3)*2.;
+          // Moving smoke wisps
+          float smoke=sin(dir.x*8.+uTime*.2)*sin(dir.z*6.+uTime*.15)*.05;
+          col+=vec3(smoke*.5,smoke*.2,smoke*.4)*smoothstep(.5,0.,y);
+          gl_FragColor=vec4(col,1.0);
+        }
+      `,
+      side: THREE.BackSide
+    });
+    this.skyDome = new THREE.Mesh(skyGeo, skyMat);
+    this.scene.add(this.skyDome);
+
+    // Smoke/mist at ground level
+    for(let i=0;i<20;i++){
+      const a=Math.random()*Math.PI*2, d=8+Math.random()*12;
+      const mist = new THREE.Mesh(
+        new THREE.SphereGeometry(2+Math.random()*3, 6, 4),
+        new THREE.MeshStandardMaterial({color:0x221122, transparent:true, opacity:.08+Math.random()*.04, depthWrite:false})
+      );
+      mist.position.set(Math.cos(a)*d, -0.3+Math.random()*.5, Math.sin(a)*d);
+      mist.userData.driftAngle = Math.random()*Math.PI*2;
+      mist.userData.driftSpeed = .1+Math.random()*.1;
+      this.scene.add(mist);
+    }
+  }
+
+  // ── Chess board ──
+  _buildBoard(){
+    // Board platform (ancient stone temple base)
+    const platGeo = new THREE.BoxGeometry(9.2, 0.35, 9.2);
+    const platMat = new THREE.MeshStandardMaterial({color:0x2a1f10, roughness:.9, metalness:.1});
+    const plat = new THREE.Mesh(platGeo, platMat);
+    plat.position.y=-.35/2-.02; plat.receiveShadow=true; plat.castShadow=true;
+    this.scene.add(plat);
+    // Decorative border
+    const borderGeo = new THREE.BoxGeometry(9.8, 0.12, 9.8);
+    const borderMat = new THREE.MeshStandardMaterial({color:0x4a3820, roughness:.8, metalness:.3});
+    const border = new THREE.Mesh(borderGeo, borderMat);
+    border.position.y=-.28; this.scene.add(border);
+    // Step
+    const step = new THREE.Mesh(new THREE.BoxGeometry(10.5,.06,10.5), borderMat);
+    step.position.y=-.36; this.scene.add(step);
+
+    // Squares
+    const lightMat = new THREE.MeshStandardMaterial({color:0xd4b896, roughness:.7, metalness:.1});
+    const darkMat = new THREE.MeshStandardMaterial({color:0x2c1a0a, roughness:.8, metalness:.15});
+    const highlightMats = {
+      selected: new THREE.MeshStandardMaterial({color:0xd4af37, emissive:0xaa8800, emissiveIntensity:.8, roughness:.5}),
+      legal: new THREE.MeshStandardMaterial({color:0x88cc44, emissive:0x446622, emissiveIntensity:.5, roughness:.5, transparent:true, opacity:.85}),
+      check: new THREE.MeshStandardMaterial({color:0xdd2200, emissive:0xaa0000, emissiveIntensity:1.2, roughness:.5}),
+      capture: new THREE.MeshStandardMaterial({color:0xff4400, emissive:0xcc2200, emissiveIntensity:.9, roughness:.5, transparent:true, opacity:.85}),
+    };
+    this._hlMats = highlightMats;
+
+    const files='abcdefgh', ranks='12345678';
+    for(let f=0;f<8;f++) for(let r=0;r<8;r++){
+      const sq=files[f]+ranks[r];
+      const isLight=(f+r)%2===1;
+      const geo = new THREE.BoxGeometry(1,.06,1);
+      const mesh = new THREE.Mesh(geo, isLight?lightMat:darkMat);
+      mesh.position.set(f-3.5, 0, 3.5-r);
+      mesh.receiveShadow=true; mesh.userData.square=sq; mesh.userData.baseMat=isLight?lightMat:darkMat;
+      this.scene.add(mesh); this.squareMeshes[sq]=mesh;
+      // Subtle crack detail
+      if(Math.random()>.7){
+        const crack = new THREE.Mesh(
+          new THREE.BoxGeometry(.4+Math.random()*.4,.07,.015),
+          new THREE.MeshStandardMaterial({color:0x111111,roughness:1})
+        );
+        crack.position.set((Math.random()-.5)*.4,0,(Math.random()-.5)*.4);
+        crack.rotation.y=Math.random()*Math.PI;
+        mesh.add(crack);
+      }
+    }
+
+    // Coordinate labels (decorative)
+    const canvas2d=document.createElement('canvas'); canvas2d.width=512; canvas2d.height=64;
+    const ctx2d=canvas2d.getContext('2d');
+    ctx2d.fillStyle='rgba(0,0,0,0)'; ctx2d.fillRect(0,0,512,64);
+    ctx2d.fillStyle='#8a6840'; ctx2d.font='bold 40px serif';
+    'abcdefgh'.split('').forEach((l,i)=>ctx2d.fillText(l,i*64+22,45));
+    const tex=new THREE.CanvasTexture(canvas2d);
+    const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(8,.5), new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:.6}));
+    labelMesh.rotation.x=-Math.PI/2; labelMesh.position.set(0,-.01,4.25); this.scene.add(labelMesh);
+  }
+
+  // ── Place pieces according to chess.js ──
+  _placePieces(){
+    // Remove existing
+    Object.values(this.pieceObjects).forEach(p=>this.scene.remove(p));
+    this.pieceObjects={};
+    const board=this.chess.board();
+    const files='abcdefgh';
+    board.forEach((row,r)=>{
+      row.forEach((piece,f)=>{
+        if(!piece) return;
+        const sq=files[f]+(8-r);
+        const mesh=this.factory.create(piece.type, piece.color);
+        mesh.position.copy(this._sqPos(sq));
+        mesh.position.y=0.03;
+        if(piece.color==='b') mesh.rotation.y=Math.PI;
+        this.scene.add(mesh);
+        this.pieceObjects[sq]=mesh;
+      });
+    });
+  }
+
+  _sqPos(sq){
+    const f=sq.charCodeAt(0)-97; const r=parseInt(sq[1])-1;
+    return new THREE.Vector3(f-3.5, 0.03, 3.5-r);
+  }
+
+  // ── Interaction ──
+  _setupInteraction(){
+    this.raycaster=new THREE.Raycaster();
+    this.mouse=new THREE.Vector2();
+    this.renderer.domElement.addEventListener('click', e=>{
+      if(this.gameOver||this.animRunning) return;
+      this.audio.resume();
+      const rect=this.renderer.domElement.getBoundingClientRect();
+      this.mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+      this.mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+      this._handleClick();
+    });
+    this.renderer.domElement.addEventListener('mousemove', e=>{
+      const rect=this.renderer.domElement.getBoundingClientRect();
+      this.mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+      this.mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+      this._handleHover();
+    });
+  }
+
+  _handleClick(){
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    // Check piece meshes first, then board squares
+    const allMeshes=[];
+    Object.values(this.squareMeshes).forEach(m=>allMeshes.push(m));
+    Object.values(this.pieceObjects).forEach(p=>p.traverse(c=>{if(c.isMesh)allMeshes.push(c);}));
+    const hits=this.raycaster.intersectObjects(allMeshes, true);
+    if(!hits.length) return;
+    let sq=null;
+    for(const h of hits){
+      let obj=h.object;
+      while(obj&&!obj.userData.square) obj=obj.parent;
+      if(obj&&obj.userData.square){ sq=obj.userData.square; break; }
+      // Check if we hit a piece
+      let pObj=h.object;
+      while(pObj&&!pObj.userData.type) pObj=pObj.parent;
+      if(pObj&&pObj.userData.type){
+        // find what square this piece is on
+        for(const [s,p] of Object.entries(this.pieceObjects)){
+          if(p===pObj){ sq=s; break; }
+        }
+        if(sq) break;
+      }
+    }
+    if(sq) this._onSquareClick(sq);
+  }
+
+  _handleHover(){
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const meshes=Object.values(this.squareMeshes);
+    const hits=this.raycaster.intersectObjects(meshes);
+    document.getElementById('canvas').style.cursor=hits.length?'pointer':'default';
+  }
+
+  _onSquareClick(sq){
+    const myTurn = this.gameMode==='local' ? true : this.chess.turn()===this.playerColor[0];
+    if(!myTurn) return;
+
+    const piece=this.chess.get(sq);
+    const isMyPiece=piece&&piece.color===this.chess.turn();
+
+    if(this.selectedSq){
+      // Try to make move
+      if(this.legalMoves.includes(sq)){
+        this._tryMove(this.selectedSq, sq);
+        return;
+      } else if(isMyPiece && sq!==this.selectedSq){
+        // Select new piece
+        this._selectSquare(sq);
+        return;
+      } else {
+        this._clearHighlights();
+        this.selectedSq=null; this.legalMoves=[];
+        return;
+      }
+    }
+
+    if(isMyPiece){
+      this._selectSquare(sq);
+      this.audio.selectSound();
+    }
+  }
+
+  _selectSquare(sq){
+    this._clearHighlights();
+    this.selectedSq=sq;
+    this.legalMoves=this.chess.moves({square:sq, verbose:true}).map(m=>m.to);
+    this._applyHighlights();
+    // Lift selected piece slightly
+    const p=this.pieceObjects[sq];
+    if(p){ this._tween({y:p.position.y},{y:0.25},200,'out',cur=>p.position.y=cur.y); }
+  }
+
+  _clearHighlights(){
+    Object.values(this.squareMeshes).forEach(m=>{
+      m.material=m.userData.baseMat;
+    });
+    // Drop all pieces back
+    Object.entries(this.pieceObjects).forEach(([sq,p])=>{
+      this._tween({y:p.position.y},{y:0.03},150,'out',cur=>p.position.y=cur.y);
+    });
+  }
+
+  _applyHighlights(){
+    if(this.selectedSq){
+      const sm=this.squareMeshes[this.selectedSq];
+      if(sm) sm.material=this._hlMats.selected;
+    }
+    this.legalMoves.forEach(sq=>{
+      const m=this.squareMeshes[sq];
+      if(!m) return;
+      const hasPiece=!!this.chess.get(sq);
+      m.material=hasPiece?this._hlMats.capture:this._hlMats.legal;
+    });
+    // Check square
+    if(this.chess.in_check()){
+      const turn=this.chess.turn();
+      const board=this.chess.board();
+      const f='abcdefgh';
+      board.forEach((row,r)=>row.forEach((p,fc)=>{
+        if(p&&p.type==='k'&&p.color===turn){
+          const s=f[fc]+(8-r);
+          if(this.squareMeshes[s]) this.squareMeshes[s].material=this._hlMats.check;
+        }
+      }));
+    }
+  }
+
+  // ── Move execution ──
+  _tryMove(from, to){
+    // Check if pawn promotion
+    const piece=this.chess.get(from);
+    if(piece&&piece.type==='p'){
+      const rank=parseInt(to[1]);
+      if((piece.color==='w'&&rank===8)||(piece.color==='b'&&rank===1)){
+        this.pendingPromo={from,to};
+        document.getElementById('promo-panel').style.display='flex';
+        return;
+      }
+    }
+    this._executeMove(from, to);
+  }
+
+  promotePawn(promo){
+    document.getElementById('promo-panel').style.display='none';
+    if(this.pendingPromo){
+      const {from,to}=this.pendingPromo;
+      this.pendingPromo=null;
+      this._executeMove(from, to, promo);
+    }
+  }
+
+  _executeMove(from, to, promo='q'){
+    if(this.animRunning) return;
+    const result=this.chess.move({from,to,promotion:promo});
+    if(!result) return;
+
+    this._clearHighlights();
+    this.selectedSq=null; this.legalMoves=[];
+
+    // Queue animations based on move type
+    const movingPiece=this.pieceObjects[from];
+    const capturedPiece=result.captured?this.pieceObjects[to]:null;
+    const isKnight=result.piece==='n';
+    const isCastle=result.flags.includes('k')||result.flags.includes('q');
+    const isEnPassant=result.flags.includes('e');
+    const isCapture=!!result.captured||isEnPassant;
+
+    if(isCapture) this.audio.captureSound();
+    else this.audio.whoosh();
+
+    this.animRunning=true;
+
+    const doneCb=()=>{
+      this.animRunning=false;
+      this._syncBoard(result, from, to, promo, isEnPassant, isCastle);
+      this._postMoveCheck(result);
+      // Multiplayer
+      if(this.ws&&this.ws.readyState===WebSocket.OPEN){
+        this.ws.send(JSON.stringify({type:'move',from,to,promotion:promo,fen:this.chess.fen()}));
+      }
+    };
+
+    if(isKnight){
+      this._animKnight(movingPiece, from, to, capturedPiece, doneCb);
+    } else if(isCapture){
+      this._animCapture(movingPiece, from, to, capturedPiece, result, doneCb);
+    } else if(isCastle){
+      this._animCastle(movingPiece, from, to, result, doneCb);
+    } else {
+      this._animMove(movingPiece, from, to, ()=>{
+        this.particles.dust(this._sqPos(to));
+        doneCb();
+      });
+    }
+  }
+
+  // ── Sync THREE.js board state after chess.js move ──
+  _syncBoard(result, from, to, promo, isEnPassant, isCastle){
+    const movingPiece=this.pieceObjects[from];
+    delete this.pieceObjects[from];
+
+    // Handle en passant capture
+    if(isEnPassant){
+      const epSq=to[0]+(parseInt(from[1]));
+      const epPiece=this.pieceObjects[epSq];
+      if(epPiece){ this.scene.remove(epPiece); delete this.pieceObjects[epSq]; }
+    }
+
+    // Remove captured piece from scene (already animated away)
+    if(this.pieceObjects[to]){ this.scene.remove(this.pieceObjects[to]); }
+
+    // Handle castling — move rook too
+    if(isCastle){
+      const kSide=result.flags.includes('k');
+      const rank=from[1];
+      const rookFrom=kSide?'h'+rank:'a'+rank;
+      const rookTo=kSide?'f'+rank:'d'+rank;
+      const rook=this.pieceObjects[rookFrom];
+      if(rook){ delete this.pieceObjects[rookFrom]; this.pieceObjects[rookTo]=rook; }
+    }
+
+    // Handle promotion — replace pawn with new piece
+    if(result.flags.includes('p')||result.flags.includes('cp')){
+      this.scene.remove(movingPiece);
+      const newPiece=this.factory.create(promo, result.color);
+      newPiece.position.copy(this._sqPos(to)); newPiece.position.y=0.03;
+      if(result.color==='b') newPiece.rotation.y=Math.PI;
+      this.scene.add(newPiece);
+      this.pieceObjects[to]=newPiece;
+      this.particles.fire(this._sqPos(to));
+    } else {
+      movingPiece.position.copy(this._sqPos(to)); movingPiece.position.y=0.03;
+      this.pieceObjects[to]=movingPiece;
+    }
+
+    // Update captured lists
+    if(result.captured){
+      const capSym={p:'♟',n:'♞',b:'♝',r:'♜',q:'♛',k:'♚'}[result.captured];
+      if(result.color==='w') this.capturedBlack.push(capSym);
+      else this.capturedWhite.push(capSym);
+      document.getElementById('captured-white').innerHTML=this.capturedWhite.map(s=>`<span class="cap-piece">${s}</span>`).join('');
+      document.getElementById('captured-black').innerHTML=this.capturedBlack.map(s=>`<span class="cap-piece">${s}</span>`).join('');
+    }
+
+    this._applyHighlights();
+    this._updateHUD();
+  }
+
+  // ── Post-move: check, checkmate, stalemate ──
+  _postMoveCheck(result){
+    if(this.chess.in_checkmate()){
+      this.gameOver=true;
+      const winner=result.color==='w'?'PANDAVA':'KAURAVA';
+      this.audio.victorySound();
+      setTimeout(()=>this._showMsg(`${winner}\nVICTORY`, true), 800);
+    } else if(this.chess.in_stalemate()||this.chess.in_draw()){
+      this.gameOver=true;
+      this._showMsg('STALEMATE\nHONORABLE DRAW', false);
+    } else if(this.chess.in_check()){
+      this.audio.checkSound();
+      this._flashCheck();
+      this._showBanner('⚔ CHECK ⚔');
+    } else {
+      const turn=this.chess.turn()==='w'?'PANDAVA':'KAURAVA';
+      this._showBanner(`${turn} MOVES`);
+    }
+  }
+
+  _flashCheck(){
+    // Screen red flash
+    const flash=document.createElement('div');
+    flash.style.cssText='position:fixed;inset:0;background:rgba(255,0,0,.25);pointer-events:none;z-index:500;transition:opacity .5s';
+    document.body.appendChild(flash);
+    setTimeout(()=>flash.style.opacity='0',100);
+    setTimeout(()=>flash.remove(),700);
+    // Camera shake
+    const orig=this.camera.position.clone();
+    let t=0;
+    const shakeAnim=()=>{
+      t+=0.08;
+      if(t<1){
+        this.camera.position.x=orig.x+Math.sin(t*30)*.15*(1-t);
+        this.camera.position.y=orig.y+Math.sin(t*25)*.1*(1-t);
+        requestAnimationFrame(shakeAnim);
+      } else {
+        this.camera.position.copy(orig);
+      }
+    };
+    shakeAnim();
+  }
+
+  // ── Animations ──
+  _animMove(piece, from, to, done, arcHeight=2.5){
+    const startPos=piece.position.clone();
+    const endPos=this._sqPos(to);
+    this._tween({t:0},{t:1},700,'inout', cur=>{
+      const t=cur.t;
+      piece.position.x=startPos.x+(endPos.x-startPos.x)*t;
+      piece.position.z=startPos.z+(endPos.z-startPos.z)*t;
+      piece.position.y=startPos.y+(endPos.y-startPos.y)*t + arcHeight*Math.sin(t*Math.PI);
+      piece.rotation.y=piece.rotation.y+(to===from?0:Math.PI*.05)*Math.sin(t*Math.PI);
+    }, done);
+  }
+
+  _animKnight(piece, from, to, captured, done){
+    // Phase 1: Draw sword (rotate sword sub-object)
+    const sword=piece.getObjectByName('sword');
+    const phase1Dur=400;
+    if(sword){
+      const origRot={...{x:sword.rotation.x,y:sword.rotation.y,z:sword.rotation.z}};
+      this._tween({r:0},{r:1},phase1Dur,'out',cur=>{
+        sword.rotation.z=origRot.z-cur.r*.6;
+        sword.rotation.x=origRot.x+cur.r*.4;
+      },()=>{
+        // Phase 2: Horse rears up
+        const origY=piece.position.y;
+        this._tween({r:0},{r:1},350,'out',cur=>{
+          piece.rotation.x=-cur.r*.35;
+          piece.position.y=origY+cur.r*.6;
+        },()=>{
+          this.particles.dust(piece.position.clone());
+          // Phase 3: L-shaped charge
+          const mid=this._getKnightMidpoint(from, to);
+          const endPos=this._sqPos(to);
+          this._tween({t:0},{t:1},500,'inout',cur=>{
+            const t=cur.t;
+            if(t<0.5){
+              const lt=t*2;
+              piece.position.x=piece.position.x*(1-lt)+mid.x*lt;
+              piece.position.z=piece.position.z*(1-lt)+mid.z*lt;
+              piece.position.y=origY+.6+lt*.5;
+            } else {
+              const lt=(t-.5)*2;
+              piece.position.x=mid.x*(1-lt)+endPos.x*lt;
+              piece.position.z=mid.z*(1-lt)+endPos.z*lt;
+              piece.position.y=origY+1.1-lt*1.1;
+            }
+          },()=>{
+            piece.rotation.x=0;
+            piece.position.y=0.03;
+            if(sword){ sword.rotation.z=sword.rotation.z+.6; sword.rotation.x=sword.rotation.x-.4; }
+            if(captured) this._animDeath(captured);
+            this.particles.dust(endPos, 0x8a5c2a, 60);
+            this.particles.sparks(endPos);
+            setTimeout(done, captured?1200:300);
+          });
+        });
+      });
+    } else {
+      // Fallback arc move
+      this._animMove(piece, from, to, ()=>{
+        if(captured) this._animDeath(captured);
+        setTimeout(done, captured?1000:200);
+      }, 3);
+    }
+  }
+
+  _getKnightMidpoint(from, to){
+    const startPos=this._sqPos(from);
+    const endPos=this._sqPos(to);
+    const df=to.charCodeAt(0)-from.charCodeAt(0);
+    const dr=parseInt(to[1])-parseInt(from[1]);
+    // L-shape waypoint
+    const mid=new THREE.Vector3();
+    if(Math.abs(df)>Math.abs(dr)){
+      mid.x=endPos.x; mid.z=startPos.z;
+    } else {
+      mid.x=startPos.x; mid.z=endPos.z;
+    }
+    mid.y=1.5;
+    return mid;
+  }
+
+  _animCapture(piece, from, to, captured, result, done){
+    const endPos=this._sqPos(to);
+    // Charge with higher arc
+    this._animMove(piece, from, to, ()=>{
+      this.particles.sparks(endPos);
+      this.particles.dust(endPos, 0x8a3a1a, 50);
+      if(captured) this._animDeath(captured);
+      setTimeout(done, 900);
+    }, 2);
+  }
+
+  _animDeath(piece){
+    if(!piece) return;
+    const pos=piece.position.clone();
+    const pColor=piece.userData&&piece.userData.color==='w'?0xaaccff:0xff6644;
+    // Piece falls backward
+    this._tween({t:0},{t:1},800,'out',cur=>{
+      piece.rotation.x=-cur.t*1.2;
+      piece.position.y=pos.y+cur.t*.3-cur.t*cur.t*.8;
+      piece.traverse(c=>{if(c.isMesh&&c.material&&c.material.opacity!==undefined){
+        c.material.transparent=true; c.material.opacity=1-cur.t;
+      }});
+    },()=>{
+      this.scene.remove(piece);
+      // Soul rises
+      this.particles.soul(pos, pColor, 100);
+      this.particles.blood(pos, 0x660000, 20);
+      this.audio.deathSound();
+    });
+  }
+
+  _animCastle(king, from, to, result, done){
+    const rank=from[1];
+    const kSide=result.flags.includes('k');
+    const rookFrom=kSide?'h'+rank:'a'+rank;
+    const rookTo=kSide?'f'+rank:'d'+rank;
+    const rook=this.pieceObjects[rookFrom];
+    let doneCount=0;
+    const checkDone=()=>{ if(++doneCount===2){ this.particles.dust(this._sqPos(to)); done(); } };
+    this._animMove(king, from, to, checkDone, 2);
+    if(rook) this._animMove(rook, rookFrom, rookTo, checkDone, 1.5);
+    else done();
+  }
+
+  // ── Tween helper ──
+  _tween(from, to, dur, ease, onUpdate, onDone){
+    this.tweens.push(new Tween(from,to,dur,ease,onUpdate,onDone));
+  }
+
+  // ── HUD updates ──
+  _updateHUD(){
+    const turn=this.chess.turn()==='w'?'PANDAVA (WHITE)':'KAURAVA (BLACK)';
+    document.getElementById('turn-indicator').textContent=`${turn}'S TURN`;
+  }
+
+  _showBanner(txt){
+    const b=document.getElementById('turn-banner');
+    b.textContent=txt; b.style.opacity='1';
+    setTimeout(()=>b.style.opacity='0',1800);
+  }
+
+  _showMsg(txt, victory){
+    const m=document.getElementById('msg-box');
+    m.style.whiteSpace='pre-line'; m.textContent=txt;
+    m.style.opacity='1';
+    if(victory) m.style.color='#d4af37';
+    else m.style.color='#8888cc';
+  }
+
+  // ── Start local game ──
+  startLocal(){
+    document.getElementById('title-screen').style.opacity='0';
+    setTimeout(()=>document.getElementById('title-screen').style.display='none',1000);
+    document.getElementById('hud').style.display='flex';
+    this.gameMode='local';
+    this.audio.init();
+    this.audio.startBGM();
+    this._showBanner('⚔ KURUKSHETRA BEGINS ⚔');
+    // Cinematic intro camera
+    const self=this;
+    this._tween({y:25,z:20},{y:14,z:11},3000,'out',cur=>{
+      self.camera.position.y=cur.y; self.camera.position.z=cur.z;
+      self.camera.lookAt(0,0,0);
+    });
+  }
+
+  // ── Multiplayer ──
+  connectOnline(){
+    const room=document.getElementById('room-input').value.trim()||'default';
+    const host=document.getElementById('ws-host').value.trim()||'localhost:8765';
+    try{
+      this.ws=new WebSocket(`ws://${host}/${room}`);
+      this.ws.onopen=()=>{
+        document.getElementById('online-panel').style.display='none';
+        document.getElementById('title-screen').style.display='none';
+        document.getElementById('hud').style.display='flex';
+        this.gameMode='online';
+        this.audio.init(); this.audio.startBGM();
+      };
+      this.ws.onmessage=(e)=>{
+        const d=JSON.parse(e.data);
+        if(d.type==='connected'){
+          this.playerColor=d.color; 
+          if(d.color==='black'){ this.camera.position.set(0,14,-11); this.camera.lookAt(0,0,0); }
+          this._showBanner(d.color==='white'?'YOU ARE PANDAVA (WHITE)':'YOU ARE KAURAVA (BLACK)');
+        }
+        if(d.type==='game_start') this._showBanner('⚔ BATTLE BEGINS ⚔');
+        if(d.type==='opponent_move'&&!this.animRunning){
+          const m=this.chess.move({from:d.from,to:d.to,promotion:d.promotion||'q'});
+          if(m){
+            const movPiece=this.pieceObjects[d.from];
+            const capPiece=m.captured?this.pieceObjects[d.to]:null;
+            this.animRunning=true;
+            const done=()=>{ this.animRunning=false; this._syncBoard(m,d.from,d.to,d.promotion||'q',m.flags.includes('e'),m.flags.includes('k')||m.flags.includes('q')); this._postMoveCheck(m); };
+            if(m.piece==='n') this._animKnight(movPiece,d.from,d.to,capPiece,done);
+            else if(m.captured) this._animCapture(movPiece,d.from,d.to,capPiece,m,done);
+            else this._animMove(movPiece,d.from,d.to,()=>{this.particles.dust(this._sqPos(d.to));done();});
+          }
+        }
+        if(d.type==='opponent_left') this._showMsg('OPPONENT\nHAS FLED THE BATTLE',false);
+      };
+      this.ws.onerror=()=>alert('Could not connect. Make sure server.py is running.');
+    }catch(err){ alert('WebSocket error: '+err.message); }
+  }
+
+  // ── Main render loop ──
+  _renderLoop(){
+    const self=this;
+    let last=performance.now();
+    function frame(now){
+      requestAnimationFrame(frame);
+      const dt=Math.min((now-last)/1000,.05); last=now;
+      // Update tweens
+      self.tweens.forEach(t=>t.tick(now));
+      self.tweens=self.tweens.filter(t=>!t.done);
+      // Update particles
+      self.particles.update(dt);
+      // Animate torches
+      self.fireTime+=dt;
+      self.torchLights.forEach((l,i)=>{
+        l.intensity=2.5+Math.sin(self.fireTime*6+i*1.3)*.8+Math.sin(self.fireTime*11+i*.7)*.4;
+      });
+      // Sky time
+      if(self.skyDome) self.skyDome.material.uniforms.uTime.value=self.fireTime;
+      // Camera controls
+      self.controls.update();
+      self.renderer.render(self.scene, self.camera);
+    }
+    requestAnimationFrame(frame);
+  }
+}
+
+// =====================================================================
+// UI HELPERS
+// =====================================================================
+const Game = new KurukshetraGame();
+
+function showOnlinePanel(){
+  document.getElementById('online-panel').style.display='flex';
+}
+function hideOnlinePanel(){
+  document.getElementById('online-panel').style.display='none';
+}
+function toggleVolume(){
+  const btn=document.getElementById('volume-btn');
+  const muted=btn.textContent==='🔇';
+  btn.textContent=muted?'🔊':'🔇';
+  Game.audio.setMuted(!muted);
+}
+
+// Expose methods for HTML buttons
+KurukshetraGame.prototype.startLocal=KurukshetraGame.prototype.startLocal;
+Game.startLocal=Game.startLocal.bind(Game);
+Game.connectOnline=Game.connectOnline.bind(Game);
+Game.promotePawn=Game.promotePawn.bind(Game);
+
+// Init
+window.addEventListener('load',()=>Game.init());
+</script>
+</body>
+</html>
